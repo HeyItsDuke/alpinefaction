@@ -3,6 +3,7 @@
 #include <patch_common/AsmWriter.h>
 #include <xlog/xlog.h>
 #include "../rf/geometry.h"
+#include "../rf/mover.h"
 #include "../rf/gr/gr.h"
 #include "../rf/os/frametime.h"
 #include "../os/console.h"
@@ -241,6 +242,19 @@ CodeInjection level_load_lightmaps_color_conv_patch{
     },
 };
 
+CodeInjection shadow_render_one_injection{
+    0x004CB195,
+    [](auto& regs) {
+        void* svol = regs.eax;
+        auto& bbox_min = struct_field_ref<rf::Vector3>(svol, 0xE4);
+        auto& bbox_max = struct_field_ref<rf::Vector3>(svol, 0xF0);
+        rf::MoverBrush *mb = regs.esi;
+        if (!rf::bbox_intersect(bbox_min, bbox_max, mb->p_data.bbox_min, mb->p_data.bbox_max)) {
+            regs.eip = 0x004CB1DA;
+        }
+    },
+};
+
 void* __fastcall decals_farray_ctor(void* that)
 {
     return AddrCaller{0x004D3120}.this_call<void*>(that, 64);
@@ -403,10 +417,19 @@ void g_solid_do_patch()
     // lightmaps format conversion
     level_load_lightmaps_color_conv_patch.install();
 
+    // When rendering shadows check mover's bounding box before processing its faces
+    shadow_render_one_injection.install();
+
     // Change decals limit
     decal_patch_limit(512);
     AsmWriter{0x004D54AF}.nop(2); // fix subhook trampoline preparation error
     g_decal_add_internal_cmp_global_weak_limit_injection.install();
+
+    // When rendering semi-transparent objects do not group objects that are behind a detail room.
+    // Grouping breaks sorting in many cases because orientation and sizes of detail rooms and objects
+    // are not taken into account.
+    AsmWriter{0x004D4409}.jmp(0x004D44B1);
+    AsmWriter{0x004D44C7}.nop(2);
 
     // Commands
     max_decals_cmd.register_cmd();

@@ -251,7 +251,7 @@ namespace rf::gr
         float tint_g;
         float tint_b;
         bool sync_to_retrace;
-        float zbias;
+        int zbias;
         Depthbuffer depthbuffer_type;
     };
     static_assert(sizeof(Screen) == 0x90);
@@ -298,6 +298,7 @@ namespace rf::gr
     static auto& screen = addr_as_ref<Screen>(0x017C7BC0);
     static auto& gamma_ramp = addr_as_ref<uint32_t[256]>(0x017C7C68);
     static auto& default_wfar = addr_as_ref<float>(0x00596140);
+    static auto& gamma = addr_as_ref<float>(0x005A445C);
 
     static auto& bitmap_clamp_mode = addr_as_ref<Mode>(0x017756BC);
     static auto& rect_mode = addr_as_ref<Mode>(0x017756C0);
@@ -308,6 +309,8 @@ namespace rf::gr
     static auto& view_pos = addr_as_ref<Vector3>(0x01818690);
     static auto& light_matrix = addr_as_ref<Matrix3>(0x01818A38);
     static auto& light_base = addr_as_ref<Vector3>(0x01818A28);
+    static auto& matrix_scale = addr_as_ref<Vector3>(0x01818B48);
+    static auto& one_over_matrix_scale_z = addr_as_ref<float>(0x01818A60);
 
     static auto& screen_width = addr_as_ref<int()>(0x0050C640);
     static auto& screen_height = addr_as_ref<int()>(0x0050C650);
@@ -327,6 +330,7 @@ namespace rf::gr
     static auto& tcache_add_ref = addr_as_ref<void(int bm_handle)>(0x0050E850);
     static auto& tcache_remove_ref = addr_as_ref<void(int bm_handle)>(0x0050E870);
     static auto& close = addr_as_ref<void()>(0x0050CBE0);
+    static auto& set_gamma = addr_as_ref<void(float)>(0x0050CE70);
     static auto& set_texture = addr_as_ref<void (int bitmap_handle, int bitmap_handle2)>(0x0050D060);
     static auto& tmapper = addr_as_ref<void (int nv, Vertex **verts, TMapperFlags vertex_attributes, Mode mode)>(0x0050DF80);
     static auto& lighting_enabled = addr_as_ref<bool()>(0x004DB8B0);

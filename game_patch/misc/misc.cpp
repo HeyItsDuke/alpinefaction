@@ -19,6 +19,8 @@
 #include "../rf/os/os.h"
 #include "../rf/misc.h"
 #include "../rf/vmesh.h"
+#include "../rf/level.h"
+#include "../rf/file/file.h"
 #include "../object/object.h"
 
 void apply_main_menu_patches();
@@ -49,6 +51,14 @@ CodeInjection critical_error_hide_main_wnd_patch{
         rf::gr::close();
         if (rf::main_wnd)
             ShowWindow(rf::main_wnd, SW_HIDE);
+    },
+};
+
+CodeInjection critical_error_log_injection{
+    0x0050BAE8,
+    [](auto& regs) {
+        const char* text = regs.ecx;
+        xlog::error("Critical error:\n%s", text);
     },
 };
 
@@ -368,6 +378,24 @@ CodeInjection vfile_read_stack_corruption_fix{
     },
 };
 
+CodeInjection game_set_file_paths_injection{
+    0x004B1810,
+    []() {
+        if (rf::mod_param.found()) {
+            std::string mod_dir = "mods\\";
+            mod_dir += rf::mod_param.get_arg();
+            rf::file_add_path(mod_dir.c_str(), ".bik", false);
+        }
+    },
+};
+
+CallHook level_init_pre_console_output_hook{
+    0x00435ABB,
+    []() {
+        rf::console::printf("-- Level Initializing: %s --", rf::level_filename_to_load.c_str());
+    },
+};
+
 void misc_init()
 {
     // Window title (client and server)
@@ -409,6 +437,9 @@ void misc_init()
 
     // Hide main window when displaying critical error message box
     critical_error_hide_main_wnd_patch.install();
+
+    // Log critical error message
+    critical_error_log_injection.install();
 
     // Fix crash when skipping cutscene after robot kill in L7S4
     mover_rotating_keyframe_oob_crashfix.install();
@@ -465,6 +496,12 @@ void misc_init()
     // Do not render the level twice when Message Log is open (GS_MESSAGE_LOG game state is marked as transparent)
     AsmWriter{0x0045514E}.nop(5);
     AsmWriter{0x0045515B}.nop(5);
+
+    // Add support for Bink videos in mods
+    game_set_file_paths_injection.install();
+
+    // Add level name to "-- Level Initializing --" message
+    level_init_pre_console_output_hook.install();
 
     // Apply patches from other files
     apply_main_menu_patches();

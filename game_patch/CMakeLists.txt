@@ -108,6 +108,7 @@ set(SRCS
     multi/multi_tdm.cpp
     multi/faction_files.cpp
     multi/faction_files.h
+    multi/multi_ban.cpp
     os/console.cpp
     os/console.h
     os/commands.cpp
@@ -209,5 +210,6 @@ target_link_libraries(DashFaction
     iphlpapi
     ws2_32
     freetype
+    stb_vorbis
 )
 

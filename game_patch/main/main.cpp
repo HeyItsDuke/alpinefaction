@@ -34,6 +34,8 @@
 #include "../rf/multi.h"
 #include "../rf/level.h"
 #include "../rf/os/os.h"
+#include "../rf/save_restore.h"
+#include "../rf/gameseq.h"
 
 #ifdef HAS_EXPERIMENTAL
 #include "../experimental/experimental.h"
@@ -76,6 +78,24 @@ CodeInjection cleanup_game_hook{
     },
 };
 
+static void maybe_autosave()
+{
+    static int pending_autosave = 0;
+    if (rf::gameseq_get_state() == rf::GS_LEVEL_TRANSITION && g_game_config.autosave) {
+        pending_autosave = 5; // wait 5 frames for the game state to fully stabilize
+    }
+    if (pending_autosave > 0) {
+        pending_autosave--;
+        if (pending_autosave == 0 && rf::sr::can_save_now() && rf::gameseq_get_state() != rf::GS_BOMB_DEFUSE) {
+            xlog::info("Performing autosave");
+            auto save_filename = std::string{rf::sr::savegame_path} + "autosave.svl";
+            if (!rf::sr::save_game(save_filename.c_str(), rf::local_player)) {
+                xlog::error("Autosave failed");
+            }
+        }
+    }
+}
+
 FunHook<int()> rf_do_frame_hook{
     0x004B2D90,
     []() {
@@ -84,6 +104,7 @@ FunHook<int()> rf_do_frame_hook{
         high_fps_update();
         server_do_frame();
         int result = rf_do_frame_hook.call_target();
+        maybe_autosave();
         debug_do_frame_post();
         return result;
     },
@@ -102,13 +123,15 @@ CodeInjection after_level_render_hook{
 CodeInjection after_frame_render_hook{
     0x004B2DC2,
     []() {
-        // Draw on top (after scene)
-        frametime_render_ui();
-        multi_render_level_download_progress();
+        if (!rf::is_dedicated_server) {
+            // Draw on top (after scene)
+            frametime_render_ui();
+            multi_render_level_download_progress();
 #if !defined(NDEBUG) && defined(HAS_EXPERIMENTAL)
-        experimental_render();
+            experimental_render();
 #endif
-        debug_render_ui();
+            debug_render_ui();
+        }
     },
 };
 
@@ -241,6 +264,8 @@ void init_logging()
     char time_str[256];
     std::strftime(time_str, sizeof(time_str), "%Y-%m-%d %H:%M:%S", tm);
     xlog::info("Current UTC time: %s", time_str);
+
+    xlog::info("Command line: %s", GetCommandLineA());
 }
 
 void log_system_info()
@@ -269,7 +294,7 @@ void load_config()
     // Load config
     try {
         if (!g_game_config.load())
-            xlog::error("Configuration has not been found in registry!");
+            xlog::warn("Configuration has not been found in registry!");
     }
     catch (std::exception& e) {
         xlog::error("Failed to load configuration: %s", e.what());

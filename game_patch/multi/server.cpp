@@ -75,6 +75,15 @@ void load_additional_server_config(rf::Parser& parser)
     if (parser.parse_optional("$DF Spawn Protection Duration:")) {
         g_additional_server_config.spawn_protection_duration_ms = parser.parse_uint();
     }
+
+    if (parser.parse_optional("$DF Spawn Health:")) {
+        g_additional_server_config.spawn_life = {parser.parse_float()};
+    }
+
+    if (parser.parse_optional("$DF Spawn Armor:")) {
+        g_additional_server_config.spawn_armor = {parser.parse_float()};
+    }
+
     if (parser.parse_optional("$DF Hitsounds:")) {
         g_additional_server_config.hit_sounds.enabled = parser.parse_bool();
         if (parser.parse_optional("+Sound ID:")) {
@@ -165,6 +174,24 @@ void load_additional_server_config(rf::Parser& parser)
         rf::String welcome_message;
         parser.parse_string(&welcome_message);
         g_additional_server_config.welcome_message = welcome_message.c_str();
+    }
+
+    if (parser.parse_optional("$DF Kill Reward:")) {
+        if (parser.parse_optional("+Effective Health:")) {
+            g_additional_server_config.kill_reward_effective_health = {parser.parse_float()};
+        }
+        if (parser.parse_optional("+Health:")) {
+            g_additional_server_config.kill_reward_health = {parser.parse_float()};
+        }
+        if (parser.parse_optional("+Armor:")) {
+            g_additional_server_config.kill_reward_armor = {parser.parse_float()};
+        }
+        if (parser.parse_optional("+Health Is Super:")) {
+            g_additional_server_config.kill_reward_health_super = {parser.parse_bool()};
+        }
+        if (parser.parse_optional("+Armor Is Super:")) {
+            g_additional_server_config.kill_reward_armor_super = {parser.parse_bool()};
+        }
     }
 
     if (!parser.parse_optional("$Name:") && !parser.parse_optional("#End")) {
@@ -501,7 +528,7 @@ CodeInjection multi_on_new_player_injection{
     },
 };
 
-static bool check_player_ac_status(rf::Player* player)
+static bool check_player_ac_status([[maybe_unused]] rf::Player* player)
 {
 #ifdef HAS_PF
     if (g_additional_server_config.anticheat_level > 0) {
@@ -538,7 +565,18 @@ FunHook<void(rf::Player*)> multi_spawn_player_server_side_hook{
         if (!check_player_ac_status(player)) {
             return;
         }
+
         multi_spawn_player_server_side_hook.call_target(player);
+
+        rf::Entity* ep = rf::entity_from_handle(player->entity_handle);
+        if (ep) {
+            if (g_additional_server_config.spawn_life) {
+                ep->life = g_additional_server_config.spawn_life.value();
+            }
+            if (g_additional_server_config.spawn_armor) {
+                ep->armor = g_additional_server_config.spawn_armor.value();
+            }
+        }
     },
 };
 
@@ -613,6 +651,16 @@ void server_reliable_socket_ready(rf::Player* player)
     }
 }
 
+CodeInjection multi_limbo_init_injection{
+    0x0047C286,
+    [](auto& regs) {
+        if (!rf::player_list) {
+            xlog::trace("Wait between levels shortened because server is empty");
+            addr_as_ref<int>(regs.esp) = 100;
+        }
+    },
+};
+
 void server_init()
 {
     // Override rcon command whitelist
@@ -675,6 +723,9 @@ void server_init()
 
     // Set lower bound of server max players clamp range to 1 (instead of 2)
     write_mem<i8>(0x0046DD4F + 1, 1);
+
+    // Reduce limbo duration if server is empty
+    multi_limbo_init_injection.install();
 }
 
 void server_do_frame()

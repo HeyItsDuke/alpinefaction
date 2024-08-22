@@ -375,5 +375,25 @@ namespace rf
     };
     static_assert(sizeof(GProceduralTexture) == 0x38);
 
+    struct GPortalObject
+    {
+        unsigned int id;
+        Vector3 pos;
+        float radius;
+        bool has_alpha;
+        bool did_draw;
+        bool is_behind_brush;
+        bool lights_enabled;
+        bool use_static_lights;
+        Plane *object_plane;
+        Vector3 *bbox_min;
+        Vector3 *bbox_max;
+        float z_value;
+        void (*render_function)(int, GSolid *);
+    };
+    static_assert(sizeof(GPortalObject) == 0x30);
+
     static auto& g_cache_clear = addr_as_ref<void()>(0x004F0B90);
+
+    static auto& bbox_intersect = addr_as_ref<bool(const Vector3& bbox1_min, const Vector3& bbox1_max, const Vector3& bbox2_min, const Vector3& bbox2_max)>(0x0046C340);
 }

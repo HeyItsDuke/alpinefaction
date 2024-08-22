@@ -91,10 +91,10 @@ bool GameConfig::detect_game_path()
     // GOG
     try
     {
-        RegKey reg_key(HKEY_LOCAL_MACHINE, "SOFTWARE\\GOG.com\\GOGREDFACTION", KEY_READ);
-        if (reg_key.read_value("PATH", &install_path))
+        RegKey reg_key(HKEY_LOCAL_MACHINE, "SOFTWARE\\Nordic Games\\Red Faction", KEY_READ);
+        if (reg_key.read_value("INSTALL_DIR", &install_path))
         {
-            game_executable_path = install_path + "RF.exe";
+            game_executable_path = install_path + "\\RF.exe";
             return true;
         }
     }
@@ -171,6 +171,7 @@ bool GameConfig::visit_vars(T&& visitor, bool is_save)
     result &= visitor(dash_faction_key, "Reticle Scale", reticle_scale);
     result &= visitor(dash_faction_key, "Mesh Static Lighting", mesh_static_lighting);
     result &= visitor(dash_faction_key, "Player Join Beep", player_join_beep);
+    result &= visitor(dash_faction_key, "Autosave", autosave);
 
     return result;
 }

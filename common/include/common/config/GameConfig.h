@@ -3,6 +3,7 @@
 #include <string>
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <common/config/CfgVar.h>
 
 template<typename T>
@@ -32,8 +33,8 @@ struct GameConfig
 
     static constexpr unsigned min_fps_limit = 10u;
     static constexpr unsigned max_fps_limit = 240u;
-    CfgVar<unsigned> max_fps{60, [](auto val) { return std::clamp(val, min_fps_limit, max_fps_limit); }};
-    CfgVar<unsigned> server_max_fps{60, [](auto val) { return std::clamp(val, min_fps_limit, max_fps_limit); }};
+    CfgVar<unsigned> max_fps{120, [](auto val) { return std::clamp(val, min_fps_limit, max_fps_limit); }};
+    CfgVar<unsigned> server_max_fps{120, [](auto val) { return std::clamp(val, min_fps_limit, max_fps_limit); }};
 
     // Graphics
     CfgVar<bool> fast_anims = false;
@@ -87,6 +88,7 @@ struct GameConfig
     CfgVar<bool> keep_launcher_open = false;
     CfgVar<bool> reduced_speed_in_background = false;
     CfgVar<bool> player_join_beep = false;
+    CfgVar<bool> autosave = true;
 
     // Internal
     CfgVar<std::string> dash_faction_version{""};
