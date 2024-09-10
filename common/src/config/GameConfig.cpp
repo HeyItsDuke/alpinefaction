@@ -202,7 +202,8 @@ bool is_valid_enum_value<GameConfig::ClampMode>(int value)
     return value == GameConfig::AUTOMATIC
         || value == GameConfig::FULL
         || value == GameConfig::LEGACYPC
-        || value == GameConfig::LEGACYPS2;
+        || value == GameConfig::LEGACYPS2
+        || value == GameConfig::TVCOLORS;
 }
 
 template<>

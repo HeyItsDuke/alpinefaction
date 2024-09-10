@@ -51,6 +51,7 @@ struct GameConfig
         FULL,
         LEGACYPC,
         LEGACYPS2,
+        TVCOLORS,
     };
     CfgVar<ClampMode> clamp_mode = AUTOMATIC;
 

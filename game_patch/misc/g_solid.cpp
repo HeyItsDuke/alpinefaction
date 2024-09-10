@@ -259,6 +259,15 @@ CodeInjection level_load_lightmaps_color_conv_patch{
                 }
             }
         }
+        // Apply TV-safe range clamping if player has forced it
+        if (g_game_config.clamp_mode == GameConfig::TVCOLORS) {
+            xlog::debug("Applying TV Colors lightmap clamping");
+            for (int i = 0; i < lightmap->w * lightmap->h * 3; i += 3) {
+                lightmap->buf[i] = std::max(16, std::min(235, (int)lightmap->buf[i]));
+                lightmap->buf[i + 1] = std::max(16, std::min(235, (int)lightmap->buf[i + 1]));
+                lightmap->buf[i + 2] = std::max(16, std::min(235, (int)lightmap->buf[i + 2]));
+            }
+        }
         // Apply legacy rf pc lightmap clamping only if either player has forced it, or if player has selected automatic and the map was made prior to Sept 8, 2024 @ 00:00:00 UTC
         else if (g_game_config.clamp_mode == GameConfig::LEGACYPC || (rf::level.level_timestamp < 1725753600 && g_game_config.clamp_mode == GameConfig::AUTOMATIC))
             {

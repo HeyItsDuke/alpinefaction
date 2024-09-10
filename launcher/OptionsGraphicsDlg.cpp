@@ -20,6 +20,7 @@ BOOL OptionsGraphicsDlg::OnInitDialog()
     m_clamp_combo.AddString("Full");
     m_clamp_combo.AddString("Legacy RF (PC)");
     m_clamp_combo.AddString("Legacy RF (PS2)");
+    m_clamp_combo.AddString("TV-Safe Colors");
     m_clamp_combo.SetCurSel(static_cast<int>(m_conf.clamp_mode));
 
     // Graphics
