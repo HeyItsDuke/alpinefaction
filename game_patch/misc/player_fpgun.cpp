@@ -3,6 +3,7 @@
 #include <patch_common/CallHook.h>
 #include <patch_common/AsmWriter.h>
 #include <common/config/BuildConfig.h>
+//#include <cmath>
 #include "../rf/player/player.h"
 #include "../rf/player/camera.h"
 #include "../rf/sound/sound.h"
@@ -20,12 +21,97 @@ static rf::Player* g_fpgun_main_player = nullptr;
 static FunHook<void(rf::Player*)> player_fpgun_update_state_anim_hook{
     0x004AA3A0,
     [](rf::Player* player) {
+        static bool initialized = false;
+        static int history_index = 0;
+        static constexpr int history_size = 10;
+        static rf::Matrix3 orient_history[history_size];
+
         player_fpgun_update_state_anim_hook.call_target(player);
+
+        const auto& new_orient = rf::camera_get_orient(player->cam); // Get current orientation
+
+        // Initialize the history buffer if this is the first frame
+        if (!initialized) {
+            for (int i = 0; i < history_size; ++i) {
+                orient_history[i] = new_orient; // Fill the history with the initial orientation
+            }
+            player->fpgun_data.cur_sway_xrot = 0.0f;
+            player->fpgun_data.cur_sway_yrot = 0.0f;
+            player->fpgun_data.goal_sway_xrot = 0.0f;
+            player->fpgun_data.goal_sway_yrot = 0.0f;
+            initialized = true;
+            return; // Skip sway application on the first frame
+        }
+
+        // Update the history buffer with the latest orientation
+        orient_history[history_index] = new_orient;
+        history_index = (history_index + 1) % history_size; // Circular buffer
+
+        // Calculate the average change in orientation across the history buffer
+        float avg_delta_x = 0.0f;
+        float avg_delta_y = 0.0f;
+        for (int i = 1; i < history_size; ++i) {
+            const auto& prev_orient = orient_history[(history_index + i - 1) % history_size];
+            const auto& cur_orient = orient_history[(history_index + i) % history_size];
+
+            // Calculate yaw and pitch deltas using right vector (rvec) and up vector (uvec)
+            avg_delta_x += (cur_orient.rvec.x - prev_orient.rvec.x); // Yaw delta (left-right)
+            avg_delta_y += (cur_orient.uvec.y - prev_orient.uvec.y); // Pitch delta (up-down)
+        }
+
+        // Normalize the average delta by dividing by history size
+        avg_delta_x /= history_size;
+        avg_delta_y /= history_size;
+
+        // Create a combined movement vector to normalize both axes together
+        float combined_delta_x = avg_delta_x;
+        float combined_delta_y = avg_delta_y;
+
+        // Use both the horizontal (rvec.x) and vertical (uvec.z) vectors to determine flipping
+        if (new_orient.uvec.z < 0) {
+            combined_delta_y = -combined_delta_y; // Invert the vertical sway direction when uvec.z crosses 0
+        }
+        if (new_orient.uvec.x < 0) {
+            combined_delta_x = -combined_delta_x; // Invert the horizontal sway direction when uvec.x crosses 0
+        }
+
+        // Normalize across both axes together (combined magnitude)
+        float combined_magnitude = sqrtf(combined_delta_x * combined_delta_x + combined_delta_y * combined_delta_y);
+        if (combined_magnitude > 0.0f) {
+            combined_delta_x /= combined_magnitude;
+            combined_delta_y /= combined_magnitude;
+        }
+
+        const float sway_scale = 100.0f; // A moderate sway scale for noticeable effect
+        const float max_sway = 0.25f;    // Moderate max sway to allow a decent range of motion
+
+        player->fpgun_data.goal_sway_xrot =
+            std::clamp(combined_delta_y * sway_scale, -max_sway, max_sway); // Vertical sway (pitch)
+        player->fpgun_data.goal_sway_yrot =
+            std::clamp(combined_delta_x * sway_scale, -max_sway, max_sway); // Horizontal sway (yaw)
+
+        const float vertical_damping = 0.0035f;  // Moderate damping for vertical sway return
+        const float horizontal_damping = 0.005f; // Moderate damping for horizontal sway return
+
+        // Smooth the sway movement
+        player->fpgun_data.cur_sway_xrot +=
+            (player->fpgun_data.goal_sway_xrot - player->fpgun_data.cur_sway_xrot) * vertical_damping;
+        player->fpgun_data.cur_sway_yrot +=
+            (player->fpgun_data.goal_sway_yrot - player->fpgun_data.cur_sway_yrot) * horizontal_damping;
+
+        // Cap the maximum sway to avoid excessive movement
+        player->fpgun_data.cur_sway_xrot = std::clamp(player->fpgun_data.cur_sway_xrot, -max_sway, max_sway);
+        player->fpgun_data.cur_sway_yrot = std::clamp(player->fpgun_data.cur_sway_yrot, -max_sway, max_sway);
+
+        // Debugging
+        rf::console::printf("Current Sway Xrot: %f, Current Sway Yrot: %f", player->fpgun_data.cur_sway_xrot,
+                            player->fpgun_data.cur_sway_yrot);
+
         if (player != rf::local_player) {
             rf::Entity* entity = rf::entity_from_handle(player->entity_handle);
             if (entity) {
-                float horz_speed_pow2 = entity->p_data.vel.x * entity->p_data.vel.x +
-                                          entity->p_data.vel.z * entity->p_data.vel.z;
+                float horz_speed_pow2 =
+                    entity->p_data.vel.x * entity->p_data.vel.x + entity->p_data.vel.z * entity->p_data.vel.z;
                 int state = rf::WS_IDLE;
                 if (rf::entity_weapon_is_on(entity->handle, entity->ai.current_primary_weapon))
                     state = rf::WS_LOOP_FIRE;
@@ -39,6 +125,7 @@ static FunHook<void(rf::Player*)> player_fpgun_update_state_anim_hook{
         }
     },
 };
+
 
 static FunHook<void(rf::Player*)> player_fpgun_render_ir_hook{
     0x004AEEF0,

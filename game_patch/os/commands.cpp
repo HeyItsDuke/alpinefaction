@@ -129,6 +129,10 @@ void console_commands_init()
     register_builtin_command("system_info", "Show system information", 0x00525A60);
     register_builtin_command("trilinear_filtering", "Toggle trilinear filtering", 0x0054F050);
     register_builtin_command("detail_textures", "Toggle detail textures", 0x0054F0B0);
+    register_builtin_command("fpgun_sway", nullptr, 0x004AB100); // not used yet
+    // Initial pass, movement in both pitch/yaw at same time dont work properly. Just pitch or just yaw is good.
+    // Also not tied to cmd yet. Also some fpguns dont look good with it. Others seem to invert sway dirs, not sure why.
+    // Might need specific handling for certain weaps/models.
 
 #ifdef DEBUG
     register_builtin_command("drop_fixed_cam", "Drop a fixed camera", 0x0040D220);
