@@ -152,6 +152,7 @@ bool GameConfig::visit_vars(T&& visitor, bool is_save)
     result &= visitor(dash_faction_key, "Anisotropic Filtering", anisotropic_filtering);
     result &= visitor(dash_faction_key, "Nearest Texture Filtering", nearest_texture_filtering);
     result &= visitor(dash_faction_key, "MSAA", msaa);
+    result &= visitor(dash_faction_key, "Force Power of 2 Textures", force_pow2_textures);
     result &= visitor(dash_faction_key, "FPS Counter", fps_counter);
     result &= visitor(dash_faction_key, "Max FPS", max_fps);
     result &= visitor(dash_faction_key, "Server Max FPS", server_max_fps);

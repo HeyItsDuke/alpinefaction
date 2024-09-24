@@ -50,6 +50,7 @@ struct GameConfig
     CfgVar<bool> disable_lod_models = true;
     CfgVar<bool> anisotropic_filtering = true;
     CfgVar<bool> nearest_texture_filtering = false;
+    CfgVar<bool> force_pow2_textures = true;
     CfgVar<unsigned> msaa = 0;
 
 
